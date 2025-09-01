@@ -278,7 +278,7 @@ fun Project.setupMainApk() {
     setupAppCommon()
 
     android {
-        namespace = "com.veygax.eventhorizon.magisk"
+        namespace = "com.topjohnwu.magisk"
 
         defaultConfig {
             applicationId = "com.veygax.eventhorizon.magisk"
