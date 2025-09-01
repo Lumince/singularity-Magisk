@@ -1,6 +1,6 @@
 package com.topjohnwu.magisk;
 
-import static com.topjohnwu.magisk.BuildConfig.APPLICATION_ID;
+import static com.veygax.eventhorizon.magisk.BuildConfig.APPLICATION_ID;
 
 import android.app.AppComponentFactory;
 import android.app.Application;
@@ -34,7 +34,7 @@ public class DynLoad {
 
     static StubApk.Data createApkData() {
         var data = new StubApk.Data();
-        data.setVersion(BuildConfig.STUB_VERSION);
+        data.setVersion(com.veygax.eventhorizon.magisk.BuildConfig.STUB_VERSION);
         data.setClassToComponent(new HashMap<>());
         data.setRootService(StubRootService.class);
         return data;
@@ -61,7 +61,7 @@ public class DynLoad {
         }
 
         // Copy from external for easier development
-        if (BuildConfig.DEBUG) {
+        if (com.veygax.eventhorizon.magisk.BuildConfig.DEBUG) {
             try {
                 File external = new File(context.getExternalFilesDir(null), "magisk.apk");
                 if (external.exists()) {

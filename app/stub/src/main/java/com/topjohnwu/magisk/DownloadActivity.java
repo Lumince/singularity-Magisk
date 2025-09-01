@@ -3,9 +3,9 @@ package com.topjohnwu.magisk;
 import static android.R.string.no;
 import static android.R.string.ok;
 import static android.R.string.yes;
-import static com.topjohnwu.magisk.R.string.dling;
-import static com.topjohnwu.magisk.R.string.no_internet_msg;
-import static com.topjohnwu.magisk.R.string.upgrade_msg;
+import static com.veygax.eventhorizon.magisk.R.string.dling;
+import static com.veygax.eventhorizon.magisk.R.string.no_internet_msg;
+import static com.veygax.eventhorizon.magisk.R.string.upgrade_msg;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -56,7 +56,7 @@ public class DownloadActivity extends Activity {
         themed = new ContextThemeWrapper(this, android.R.style.Theme_DeviceDefault);
 
         // Only download and dynamic load full APK if hidden
-        dynLoad = !getPackageName().equals(BuildConfig.APPLICATION_ID);
+        dynLoad = !getPackageName().equals(com.veygax.eventhorizon.magisk.BuildConfig.APPLICATION_ID);
 
         // Inject resources
         try {
@@ -107,7 +107,7 @@ public class DownloadActivity extends Activity {
     private void dlAPK() {
         ProgressDialog.show(themed, getString(dling), getString(dling) + " " + APP_NAME, true);
         // Download and upgrade the app
-        var request = request(BuildConfig.APK_URL).setExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
+        var request = request(com.veygax.eventhorizon.magisk.BuildConfig.APK_URL).setExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
         if (dynLoad) {
             request.getAsFile(StubApk.current(this), file -> StubApk.restartProcess(this));
         } else {
