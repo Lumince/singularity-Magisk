@@ -13,10 +13,10 @@ ksp {
 }
 
 android {
-    namespace = "com.topjohnwu.magisk.core"
+    namespace = "com.veygax.eventhorizon.magisk.core"
 
     defaultConfig {
-        buildConfigField("String", "APP_PACKAGE_NAME", "\"com.topjohnwu.magisk\"")
+        buildConfigField("String", "APP_PACKAGE_NAME", "\"com.veygax.eventhorizon.magisk\"")
         buildConfigField("int", "APP_VERSION_CODE", "${Config.versionCode}")
         buildConfigField("String", "APP_VERSION_NAME", "\"${Config.version}\"")
         buildConfigField("int", "STUB_VERSION", Config.stubVersion)

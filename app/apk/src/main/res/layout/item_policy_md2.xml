@@ -85,7 +85,7 @@
                         app:layout_constraintStart_toStartOf="@id/policy_app_name"
                         app:layout_constraintTop_toBottomOf="@id/policy_app_name"
                         app:layout_constraintVertical_bias="0"
-                        tools:text="com.topjohnwu.magisk" />
+                        tools:text="com.veygax.eventhorizon.magisk" />
 
                     <FrameLayout
                         android:id="@+id/policy_indicator"

@@ -278,10 +278,10 @@ fun Project.setupMainApk() {
     setupAppCommon()
 
     android {
-        namespace = "com.topjohnwu.magisk"
+        namespace = "com.veygax.eventhorizon.magisk"
 
         defaultConfig {
-            applicationId = "com.topjohnwu.magisk"
+            applicationId = "com.veygax.eventhorizon.magisk"
             vectorDrawables.useSupportLibrary = true
             versionName = Config.version
             versionCode = Config.versionCode

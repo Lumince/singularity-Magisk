@@ -36,7 +36,7 @@
             app:layout_constraintEnd_toStartOf="@+id/hide_process_checkbox"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            tools:text="com.topjohnwu.magisk" />
+            tools:text="com.veygax.eventhorizon.magisk" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
             android:id="@+id/hide_process_checkbox"

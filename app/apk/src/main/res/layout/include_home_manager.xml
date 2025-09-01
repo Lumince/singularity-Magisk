@@ -135,7 +135,7 @@
                                 android:id="@+id/home_manager_extra_connection_value"
                                 style="@style/W.Home.ItemContent.Right"
                                 android:text="@{context.packageName}"
-                                tools:text="com.topjohnwu.magisk" />
+                                tools:text="com.veygax.eventhorizon.magisk" />
 
                         </LinearLayout>
 

@@ -78,7 +78,7 @@
                     app:layout_constraintEnd_toEndOf="@+id/hide_name"
                     app:layout_constraintStart_toStartOf="@+id/hide_name"
                     app:layout_constraintTop_toBottomOf="@+id/hide_name"
-                    tools:text="com.topjohnwu.magisk" />
+                    tools:text="com.veygax.eventhorizon.magisk" />
 
                 <com.topjohnwu.widget.IndeterminateCheckBox
                     android:id="@+id/hide_expand_icon"

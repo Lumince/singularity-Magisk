@@ -88,7 +88,7 @@
                         android:minWidth="200dp"
                         android:text="@{viewModel.packageName}"
                         android:textAppearance="@style/AppearanceFoundation.Caption.Variant"
-                        tools:text="com.topjohnwu.magisk" />
+                        tools:text="com.veygax.eventhorizon.magisk" />
                 </LinearLayout>
             </LinearLayout>
 
