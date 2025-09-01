@@ -13,7 +13,7 @@ ksp {
 }
 
 android {
-    namespace = "com.veygax.eventhorizon.magisk.core"
+    namespace = "com.topjohnwu.magisk.core"
 
     defaultConfig {
         buildConfigField("String", "APP_PACKAGE_NAME", "\"com.veygax.eventhorizon.magisk\"")
