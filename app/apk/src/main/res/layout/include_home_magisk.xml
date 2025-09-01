@@ -61,19 +61,6 @@
                 app:layout_constraintBottom_toBottomOf="@+id/home_magisk_title"
                 app:layout_constraintTop_toTopOf="@+id/home_magisk_title">
 
-                <Button
-                    style="@style/WidgetFoundation.Button"
-                    gone="@{viewModel.magiskState != State.OUTDATED}"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:onClick="@{() -> viewModel.onMagiskPressed()}"
-                    android:text="@string/update"
-                    android:textAllCaps="false"
-                    android:layout_gravity="end"
-                    app:icon="@drawable/ic_update_md2" />
-
-
-
             </FrameLayout>
 
             <androidx.constraintlayout.widget.Barrier
