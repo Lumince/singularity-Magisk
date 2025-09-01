@@ -246,4 +246,7 @@
     <string name="reboot_apply_change">Reboot to apply changes</string>
     <string name="restore_app_confirmation">This will restore the hidden app back to the original app. Do you really want to do this?</string>
 
+    <!--eventhorizon-->
+    <string name="home_notice_unofficial_magisk">You are using an unofficial version of Magisk for Meta Quest devices known as eventhorizon-Magisk that is not officially supported by the Magisk author. Do not report any issues or request any help from official Magisk channels. Only report issues to @veygax on Discord or through https://github.com/veygax/eventhorizon-Magisk/issues.</string>
+
 </resources>

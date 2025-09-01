@@ -64,7 +64,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:padding="@dimen/l1"
-                        android:text="@string/home_notice_content"
+                        android:text="@string/home_notice_unofficial_magisk"
                         android:textAppearance="@style/AppearanceFoundation.Caption.OnPrimary"
                         app:layout_constraintEnd_toStartOf="@+id/home_notice_hide"
                         app:layout_constraintStart_toStartOf="parent"
@@ -111,20 +111,6 @@
                 goneUnless="@{Info.env.isActive}"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/l1" />
-
-            <Button
-                style="@style/WidgetFoundation.Button.Outlined.Error"
-                goneUnless="@{Info.env.isActive}"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/l1"
-                android:layout_marginEnd="@dimen/l1"
-                android:onClick="@{() -> viewModel.onDeletePressed()}"
-                android:text="@string/uninstall_magisk_title"
-                android:textAllCaps="false"
-                android:textSize="12sp"
-                app:cornerRadius="@dimen/r1"
-                app:icon="@drawable/ic_delete_md2" />
 
             <com.google.android.material.card.MaterialCardView
                 style="@style/WidgetFoundation.Card"

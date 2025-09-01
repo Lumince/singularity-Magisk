@@ -72,16 +72,7 @@
                     android:layout_gravity="end"
                     app:icon="@drawable/ic_update_md2" />
 
-                <Button
-                    style="@style/WidgetFoundation.Button.Text"
-                    gone="@{viewModel.magiskState == State.OUTDATED}"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:onClick="@{() -> viewModel.onMagiskPressed()}"
-                    android:text="@string/install"
-                    android:textAllCaps="false"
-                    app:icon="@drawable/ic_install"/>
+
 
             </FrameLayout>
 

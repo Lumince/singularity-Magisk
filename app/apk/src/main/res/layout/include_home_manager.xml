@@ -60,28 +60,6 @@
                 app:layout_constraintBottom_toBottomOf="@+id/home_manager_title"
                 app:layout_constraintTop_toTopOf="@+id/home_manager_title">
 
-                <Button
-                    style="@style/WidgetFoundation.Button"
-                    gone="@{viewModel.appState != State.OUTDATED}"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:onClick="@{() -> viewModel.onManagerPressed()}"
-                    android:text="@string/update"
-                    android:textAllCaps="false"
-                    android:layout_gravity="end"
-                    app:icon="@drawable/ic_update_md2" />
-
-                <Button
-                    style="@style/WidgetFoundation.Button.Text"
-                    gone="@{viewModel.appState != State.UP_TO_DATE}"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:onClick="@{() -> viewModel.onManagerPressed()}"
-                    android:text="@string/install"
-                    android:textAllCaps="false"
-                    app:icon="@drawable/ic_install"/>
-
             </FrameLayout>
 
             <androidx.constraintlayout.widget.Barrier
