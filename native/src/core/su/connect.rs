@@ -6,11 +6,16 @@ use crate::ffi::{SuPolicy, SuRequest, get_magisk_tmp};
 use crate::socket::IpcRead;
 use ExtraVal::{Bool, Int, IntList, Str};
 use base::{
-    BytesExt, FileAttr, LibcReturn, LoggedResult, OsError, ResultExt, cstr, fork_dont_care, libc,
+    BytesExt, FileAttr, LibcReturn, LoggedResult, ResultExt, Utf8CStrBuf, cstr, fork_dont_care,
 };
-use libc::pollfd as PollFd;
+use nix::{
+    fcntl::OFlag,
+    poll::{PollFd, PollFlags, PollTimeout},
+};
 use num_traits::AsPrimitive;
-use std::{fmt::Write, fs::File, os::fd::AsRawFd, process::Command, process::exit};
+use std::os::fd::AsFd;
+use std::os::unix::net::UCred;
+use std::{fmt::Write, fs::File, process::Command, process::exit};
 
 struct Extra<'a> {
     key: &'static str,
@@ -82,7 +87,7 @@ impl Extra<'_> {
 }
 
 pub(super) struct SuAppContext<'a> {
-    pub(super) cred: libc::ucred,
+    pub(super) cred: UCred,
     pub(super) request: &'a SuRequest,
     pub(super) info: &'a SuInfo,
     pub(super) settings: &'a mut RootSettings,
@@ -162,7 +167,7 @@ impl SuAppContext<'_> {
             "{}/{}/su_request_{}",
             get_magisk_tmp(),
             INTERNAL_DIR,
-            self.cred.pid
+            self.cred.pid.unwrap_or(-1)
         ))
         .ok();
 
@@ -171,7 +176,7 @@ impl SuAppContext<'_> {
             attr.st.st_mode = 0o600;
             attr.st.st_uid = self.info.mgr_uid.as_();
             attr.st.st_gid = self.info.mgr_uid.as_();
-            attr.con.write_str(MAGISK_FILE_CON).ok();
+            attr.con.push_str(MAGISK_FILE_CON);
 
             fifo.mkfifo(0o600)?;
             fifo.set_attr(&attr)?;
@@ -187,25 +192,18 @@ impl SuAppContext<'_> {
                 },
                 Extra {
                     key: "pid",
-                    value: Int(self.cred.pid),
+                    value: Int(self.cred.pid.unwrap_or(-1)),
                 },
             ];
             self.exec_cmd("request", &extras, false);
 
             // Open with O_RDWR to prevent FIFO open block
-            let fd = fifo.open(libc::O_RDWR | libc::O_CLOEXEC)?;
+            let fd = fifo.open(OFlag::O_RDWR | OFlag::O_CLOEXEC)?;
+            let mut pfd = [PollFd::new(fd.as_fd(), PollFlags::POLLIN)];
 
             // Wait for data input for at most 70 seconds
-            let mut pfd = PollFd {
-                fd: fd.as_raw_fd(),
-                events: libc::POLLIN,
-                revents: 0,
-            };
-            if unsafe { libc::poll(&mut pfd, 1, 70 * 1000).as_os_result("poll", None, None)? } == 0
-            {
-                Err(OsError::with_os_error(libc::ETIMEDOUT, "poll", None, None))?;
-            }
-
+            nix::poll::poll(&mut pfd, PollTimeout::try_from(70 * 1000).unwrap())
+                .check_os_err("poll", None, None)?;
             fd
         };
 
@@ -232,7 +230,7 @@ impl SuAppContext<'_> {
             },
             Extra {
                 key: "pid",
-                value: Int(self.cred.pid.as_()),
+                value: Int(self.cred.pid.unwrap_or(-1).as_()),
             },
             Extra {
                 key: "policy",
@@ -259,7 +257,7 @@ impl SuAppContext<'_> {
             },
             Extra {
                 key: "pid",
-                value: Int(self.cred.pid.as_()),
+                value: Int(self.cred.pid.unwrap_or(-1).as_()),
             },
             Extra {
                 key: "policy",

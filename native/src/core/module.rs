@@ -4,13 +4,13 @@ use crate::ffi::{ModuleInfo, exec_module_scripts, exec_script, get_magisk_tmp};
 use crate::mount::setup_module_mount;
 use crate::resetprop::load_prop_file;
 use base::{
-    DirEntry, Directory, FsPathBuilder, LibcReturn, LoggedResult, OsResultStatic, ResultExt,
-    SilentLogExt, Utf8CStr, Utf8CStrBuf, Utf8CString, WalkResult, clone_attr, cstr, debug, error,
-    info, libc, raw_cstr, warn,
+    DirEntry, Directory, FsPathBuilder, LoggedResult, OsResult, ResultExt, SilentLogExt, Utf8CStr,
+    Utf8CStrBuf, Utf8CString, WalkResult, clone_attr, cstr, debug, error, info, libc, raw_cstr,
+    warn,
 };
-use libc::{AT_REMOVEDIR, MS_RDONLY, O_CLOEXEC, O_CREAT, O_RDONLY};
+use nix::{fcntl::OFlag, mount::MsFlags, unistd::UnlinkatFlags};
 use std::collections::BTreeMap;
-use std::os::fd::{AsRawFd, IntoRawFd};
+use std::os::fd::IntoRawFd;
 use std::path::{Component, Path};
 use std::ptr;
 use std::sync::atomic::Ordering;
@@ -39,14 +39,19 @@ fn bind_mount(reason: &str, src: &Utf8CStr, dest: &Utf8CStr, rec: bool) {
     // Ignore any kind of error here. If a single bind mount fails due to selinux permissions or
     // kernel limitations, don't let it break module mount entirely.
     src.bind_mount_to(dest, rec).log_ok();
-    dest.remount_mount_point_flags(MS_RDONLY).log_ok();
+    dest.remount_mount_point_flags(MsFlags::MS_RDONLY).log_ok();
 }
 
-fn mount_dummy(reason: &str, src: &Utf8CStr, dest: &Utf8CStr, is_dir: bool) -> OsResultStatic<()> {
+fn mount_dummy<'a>(
+    reason: &str,
+    src: &Utf8CStr,
+    dest: &'a Utf8CStr,
+    is_dir: bool,
+) -> OsResult<'a, ()> {
     if is_dir {
         dest.mkdir(0o000)?;
     } else {
-        dest.create(O_CREAT | O_RDONLY | O_CLOEXEC, 0o000)?;
+        dest.create(OFlag::O_CREAT | OFlag::O_RDONLY | OFlag::O_CLOEXEC, 0o000)?;
     }
     bind_mount(reason, src, dest, false);
     Ok(())
@@ -91,46 +96,101 @@ impl Drop for PathTracker<'_> {
     }
 }
 
-struct FilePaths<'a> {
+// The comments for this struct assume real = "/system/bin"
+struct ModulePaths<'a> {
     real: PathTracker<'a>,
-    worker: PathTracker<'a>,
+    module: PathTracker<'a>,
     module_mnt: PathTracker<'a>,
-    module_root: PathTracker<'a>,
 }
 
-impl FilePaths<'_> {
-    fn append(&mut self, name: &str) -> FilePaths<'_> {
-        FilePaths {
-            real: self.real.append(name),
-            worker: self.worker.append(name),
-            module_mnt: self.module_mnt.append(name),
-            module_root: self.module_root.append(name),
+impl ModulePaths<'_> {
+    fn new<'a>(
+        real: &'a mut dyn Utf8CStrBuf,
+        module: &'a mut dyn Utf8CStrBuf,
+        module_mnt: &'a mut dyn Utf8CStrBuf,
+    ) -> ModulePaths<'a> {
+        real.append_path("/");
+        module.append_path(MODULEROOT);
+        module_mnt
+            .append_path(get_magisk_tmp())
+            .append_path(MODULEMNT);
+        ModulePaths {
+            real: PathTracker::from(real),
+            module: PathTracker::from(module),
+            module_mnt: PathTracker::from(module_mnt),
         }
     }
 
-    fn reborrow(&mut self) -> FilePaths<'_> {
-        FilePaths {
+    fn set_module(&mut self, module: &str) -> ModulePaths<'_> {
+        ModulePaths {
             real: self.real.reborrow(),
-            worker: self.worker.reborrow(),
-            module_mnt: self.module_mnt.reborrow(),
-            module_root: self.module_root.reborrow(),
+            module: self.module.append(module),
+            module_mnt: self.module_mnt.append(module),
         }
     }
 
+    fn append(&mut self, name: &str) -> ModulePaths<'_> {
+        ModulePaths {
+            real: self.real.append(name),
+            module: self.module.append(name),
+            module_mnt: self.module_mnt.append(name),
+        }
+    }
+
+    // Returns "/system/bin"
     fn real(&self) -> &Utf8CStr {
         self.real.path
     }
 
-    fn worker(&self) -> &Utf8CStr {
-        self.worker.path
+    // Returns "/data/adb/modules/{module}/system/bin"
+    fn module(&self) -> &Utf8CStr {
+        self.module.path
     }
 
+    // Returns "$MAGISK_TMP/.magisk/modules/{module}/system/bin"
     fn module_mnt(&self) -> &Utf8CStr {
         self.module_mnt.path
     }
+}
 
-    fn module(&self) -> &Utf8CStr {
-        self.module_root.path
+// The comments for this struct assume real = "/system/bin"
+struct MountPaths<'a> {
+    real: PathTracker<'a>,
+    worker: PathTracker<'a>,
+}
+
+impl MountPaths<'_> {
+    fn new<'a>(real: &'a mut dyn Utf8CStrBuf, worker: &'a mut dyn Utf8CStrBuf) -> MountPaths<'a> {
+        real.append_path("/");
+        worker.append_path(get_magisk_tmp()).append_path(WORKERDIR);
+        MountPaths {
+            real: PathTracker::from(real),
+            worker: PathTracker::from(worker),
+        }
+    }
+
+    fn append(&mut self, name: &str) -> MountPaths<'_> {
+        MountPaths {
+            real: self.real.append(name),
+            worker: self.worker.append(name),
+        }
+    }
+
+    fn reborrow(&mut self) -> MountPaths<'_> {
+        MountPaths {
+            real: self.real.reborrow(),
+            worker: self.worker.reborrow(),
+        }
+    }
+
+    // Returns "/system/bin"
+    fn real(&self) -> &Utf8CStr {
+        self.real.path
+    }
+
+    // Returns "$MAGISK_TMP/.magisk/worker/system/bin"
+    fn worker(&self) -> &Utf8CStr {
+        self.worker.path
     }
 }
 
@@ -149,7 +209,7 @@ impl FsNode {
         }
     }
 
-    fn collect(&mut self, mut paths: FilePaths) -> LoggedResult<()> {
+    fn collect(&mut self, mut paths: ModulePaths) -> LoggedResult<()> {
         let FsNode::Directory { children } = self else {
             return Ok(());
         };
@@ -164,6 +224,7 @@ impl FsNode {
                     .or_insert_with(FsNode::new_dir);
                 node.collect(entry_paths)?;
             } else if entry.is_symlink() {
+                // Read the link and store its target
                 let mut link = cstr::buf::default();
                 path.read_link(&mut link)?;
                 children
@@ -220,7 +281,7 @@ impl FsNode {
         }
     }
 
-    fn commit(&mut self, mut path: FilePaths, is_root_dir: bool) -> LoggedResult<()> {
+    fn commit(&mut self, mut path: MountPaths, is_root_dir: bool) -> LoggedResult<()> {
         match self {
             FsNode::Directory { children } => {
                 let mut is_tmpfs = false;
@@ -272,7 +333,7 @@ impl FsNode {
         Ok(())
     }
 
-    fn commit_tmpfs(&mut self, mut path: FilePaths) -> LoggedResult<()> {
+    fn commit_tmpfs(&mut self, mut path: MountPaths) -> LoggedResult<()> {
         match self {
             FsNode::Directory { children } => {
                 path.worker().mkdirs(0o000)?;
@@ -283,21 +344,18 @@ impl FsNode {
                     clone_attr(&parent, path.worker())?;
                 }
 
-                // Check whether a file name '.replace' exist
+                // Check whether a file named '.replace' exists
                 if let Some(FsNode::File { src }) = children.remove(".replace")
-                    && let Some(base_dir) = src.parent_dir()
+                    && let Some(replace_dir) = src.parent_dir()
                 {
                     for (name, node) in children {
                         let path = path.append(name);
                         match node {
-                            FsNode::Directory { .. } | FsNode::File { .. } => {
-                                let src = Utf8CString::from(base_dir).join_path(name);
-                                mount_dummy(
-                                    "mount",
-                                    &src,
-                                    path.worker(),
-                                    matches!(node, FsNode::Directory { .. }),
-                                )?;
+                            FsNode::Directory { .. } => {
+                                // For replace, we don't need to traverse any deeper for mirroring.
+                                // We can simply just bind mount the module dir to worker dir.
+                                let src = Utf8CString::from(replace_dir).join_path(name);
+                                mount_dummy("mount", &src, path.worker(), true)?;
                             }
                             _ => node.commit_tmpfs(path)?,
                         }
@@ -307,7 +365,7 @@ impl FsNode {
                     return Ok(());
                 }
 
-                // Traverse the real directory and mount mirrors
+                // Traverse the real directory and mount mirror files
                 if let Ok(mut dir) = Directory::open(path.real()) {
                     while let Ok(Some(entry)) = dir.read() {
                         if children.contains_key(entry.name().as_str()) {
@@ -317,18 +375,22 @@ impl FsNode {
 
                         let path = path.append(entry.name());
 
-                        if entry.is_symlink() {
-                            // Add the symlink into children and handle it later
+                        if entry.is_dir() {
+                            // At the first glance, it looks like we can directly mount the
+                            // real dir to worker dir as mirror. However, this should NOT be done,
+                            // because init will track these mounts with dev.mnt, causing issues.
+                            // We unfortunately have to traverse recursively for mirroring.
+                            FsNode::new_dir().commit_tmpfs(path)?;
+                        } else if entry.is_symlink() {
                             let mut link = cstr::buf::default();
                             entry.read_link(&mut link).log_ok();
-                            children.insert(
-                                entry.name().to_string(),
-                                FsNode::Symlink {
-                                    target: link.to_owned(),
-                                },
-                            );
+                            FsNode::Symlink {
+                                target: link.to_owned(),
+                            }
+                            .commit_tmpfs(path)?;
                         } else {
-                            mount_dummy("mirror", path.real(), path.worker(), entry.is_dir())?;
+                            // Mount the mirror file
+                            mount_dummy("mirror", path.real(), path.worker(), false)?;
                         }
                     }
                 }
@@ -558,7 +620,6 @@ fn inject_zygisk_bins(name: &str, system: &mut FsNode) {
 
 fn upgrade_modules() -> LoggedResult<()> {
     let mut upgrade = Directory::open(cstr!(MODULEUPGRADE)).silent()?;
-    let ufd = upgrade.as_raw_fd();
     let root = Directory::open(cstr!(MODULEROOT))?;
     while let Some(e) = upgrade.read()? {
         if !e.is_dir() {
@@ -572,23 +633,19 @@ fn upgrade_modules() -> LoggedResult<()> {
             // If the old module is disabled, we need to also disable the new one
             disable = module.contains_path(cstr!("disable"));
             module.remove_all()?;
-            root.unlink_at(module_name, AT_REMOVEDIR)?;
+            root.unlink_at(module_name, UnlinkatFlags::RemoveDir)?;
         }
         info!("Upgrade / New module: {module_name}");
-        unsafe {
-            libc::renameat(
-                ufd,
-                module_name.as_ptr(),
-                root.as_raw_fd(),
-                module_name.as_ptr(),
-            )
-            .check_os_err("renameat", Some(module_name), None)?;
-        }
+        e.rename_to(&root, module_name)?;
         if disable {
             let path = cstr::buf::default()
                 .join_path(module_name)
                 .join_path("disable");
-            let _ = root.open_as_file_at(&path, O_RDONLY | O_CREAT | O_CLOEXEC, 0)?;
+            let _ = root.open_as_file_at(
+                &path,
+                OFlag::O_RDONLY | OFlag::O_CREAT | OFlag::O_CLOEXEC,
+                0,
+            )?;
         }
     }
     upgrade.remove_all()?;
@@ -609,7 +666,11 @@ fn for_each_module(mut func: impl FnMut(&DirEntry) -> LoggedResult<()>) -> Logge
 pub fn disable_modules() {
     for_each_module(|e| {
         let dir = e.open_as_dir()?;
-        dir.open_as_file_at(cstr!("disable"), O_RDONLY | O_CREAT | O_CLOEXEC, 0)?;
+        dir.open_as_file_at(
+            cstr!("disable"),
+            OFlag::O_RDONLY | OFlag::O_CREAT | OFlag::O_CLOEXEC,
+            0,
+        )?;
         Ok(())
     })
     .log_ok();
@@ -651,7 +712,8 @@ fn collect_modules(zygisk_enabled: bool, open_zygisk: bool) -> Vec<ModuleInfo> {
             e.unlink()?;
             return Ok(());
         }
-        dir.unlink_at(cstr!("update"), 0).ok();
+        dir.unlink_at(cstr!("update"), UnlinkatFlags::NoRemoveDir)
+            .ok();
         if dir.contains_path(cstr!("disable")) {
             return Ok(());
         }
@@ -668,7 +730,7 @@ fn collect_modules(zygisk_enabled: bool, open_zygisk: bool) -> Vec<ModuleInfo> {
             }
 
             fn open_fd_safe(dir: &Directory, name: &Utf8CStr) -> i32 {
-                dir.open_as_file_at(name, O_RDONLY | O_CLOEXEC, 0)
+                dir.open_as_file_at(name, OFlag::O_RDONLY | OFlag::O_CLOEXEC, 0)
                     .log()
                     .map(IntoRawFd::into_raw_fd)
                     .unwrap_or(-1)
@@ -697,7 +759,8 @@ fn collect_modules(zygisk_enabled: bool, open_zygisk: bool) -> Vec<ModuleInfo> {
                 {
                     z64 = open_fd_safe(&dir, cstr!("zygisk/riscv64.so"));
                 }
-                dir.unlink_at(cstr!("zygisk/unloaded"), 0).ok();
+                dir.unlink_at(cstr!("zygisk/unloaded"), UnlinkatFlags::NoRemoveDir)
+                    .ok();
             }
         } else {
             // Ignore zygisk modules when zygisk is not enabled
@@ -773,26 +836,12 @@ impl MagiskD {
     fn apply_modules(&self, module_list: &[ModuleInfo]) {
         let mut system = FsNode::new_dir();
 
-        // Build all the base "prefix" paths
-        let mut root = cstr::buf::default().join_path("/");
+        // Create buffers for paths
+        let mut buf1 = cstr::buf::dynamic(256);
+        let mut buf2 = cstr::buf::dynamic(256);
+        let mut buf3 = cstr::buf::dynamic(256);
 
-        let mut module_dir = cstr::buf::default().join_path(MODULEROOT);
-
-        let mut module_mnt = cstr::buf::default()
-            .join_path(get_magisk_tmp())
-            .join_path(MODULEMNT);
-
-        let mut worker = cstr::buf::default()
-            .join_path(get_magisk_tmp())
-            .join_path(WORKERDIR);
-
-        // Create a collection of all relevant paths
-        let mut root_paths = FilePaths {
-            real: PathTracker::from(&mut root),
-            worker: PathTracker::from(&mut worker),
-            module_mnt: PathTracker::from(&mut module_mnt),
-            module_root: PathTracker::from(&mut module_dir),
-        };
+        let mut paths = ModulePaths::new(&mut buf1, &mut buf2, &mut buf3);
 
         // Step 1: Create virtual filesystem tree
         //
@@ -800,28 +849,27 @@ impl MagiskD {
         // record the union of all module filesystem trees under each of their /system directory.
 
         for info in module_list {
-            let mut module_paths = root_paths.append(&info.name);
-            {
-                // Read props
-                let prop = module_paths.append("system.prop");
-                if prop.module().exists() {
-                    load_prop_file(prop.module());
-                }
+            let mut paths = paths.set_module(&info.name);
+
+            // Read props
+            let prop = paths.append("system.prop");
+            if prop.module().exists() {
+                load_prop_file(prop.module());
             }
-            {
-                // Check whether skip mounting
-                let skip = module_paths.append("skip_mount");
-                if skip.module().exists() {
-                    continue;
-                }
+            drop(prop);
+
+            // Check whether skip mounting
+            let skip = paths.append("skip_mount");
+            if skip.module().exists() {
+                continue;
             }
-            {
-                // Double check whether the system folder exists
-                let sys = module_paths.append("system");
-                if sys.module().exists() {
-                    info!("{}: loading module files", &info.name);
-                    system.collect(sys).log_ok();
-                }
+            drop(skip);
+
+            // Double check whether the system folder exists
+            let sys = paths.append("system");
+            if sys.module().exists() {
+                info!("{}: loading module files", &info.name);
+                system.collect(sys).log_ok();
             }
         }
 
@@ -868,6 +916,9 @@ impl MagiskD {
         }
         roots.insert("system", system);
 
+        drop(paths);
+        let mut paths = MountPaths::new(&mut buf1, &mut buf2);
+
         for (dir, mut root) in roots {
             // Step 4: Convert virtual filesystem tree into concrete operations
             //
@@ -876,8 +927,8 @@ impl MagiskD {
             // The "core" of the logic is to decide which directories need to be rebuilt in the
             // tmpfs worker directory, and real sub-nodes need to be mirrored inside it.
 
-            let path = root_paths.append(dir);
-            root.commit(path, true).log_ok();
+            let paths = paths.append(dir);
+            root.commit(paths, true).log_ok();
         }
     }
 }

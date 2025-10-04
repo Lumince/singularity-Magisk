@@ -3,13 +3,14 @@ use crate::daemon::{MagiskD, to_user_id};
 use crate::ffi::{ZygiskRequest, ZygiskStateFlags, get_magisk_tmp, update_deny_flags};
 use crate::resetprop::{get_prop, set_prop};
 use crate::socket::{IpcRead, UnixSocketExt};
-use base::libc::{O_CLOEXEC, O_CREAT, O_RDONLY, STDOUT_FILENO};
+use base::libc::STDOUT_FILENO;
 use base::{
     Directory, FsPathBuilder, LoggedResult, ResultExt, Utf8CStr, WriteExt, cstr, fork_dont_care,
     libc, log_err, raw_cstr, warn,
 };
+use nix::fcntl::OFlag;
 use std::fmt::Write;
-use std::os::fd::{AsRawFd, FromRawFd, RawFd};
+use std::os::fd::{AsRawFd, RawFd};
 use std::os::unix::net::UnixStream;
 use std::ptr;
 use std::sync::atomic::Ordering;
@@ -135,7 +136,7 @@ impl ZygiskState {
         self.lib_name = if orig.is_empty() || orig == "0" {
             ZYGISKLDR.to_string()
         } else {
-            orig + ZYGISKLDR
+            ZYGISKLDR.to_string() + &orig
         };
         set_prop(NBPROP, Utf8CStr::from_string(&mut self.lib_name));
         // Whether Huawei's Maple compiler is enabled.
@@ -146,7 +147,7 @@ impl ZygiskState {
         }
     }
 
-    fn restore_prop(&mut self) {
+    pub fn restore_prop(&mut self) {
         let mut orig = "0".to_string();
         if self.lib_name.len() > ZYGISKLDR.len() {
             orig = self.lib_name[ZYGISKLDR.len()..].to_string();
@@ -157,8 +158,7 @@ impl ZygiskState {
 }
 
 impl MagiskD {
-    pub fn zygisk_handler(&self, client: i32) {
-        let mut client = unsafe { UnixStream::from_raw_fd(client) };
+    pub fn zygisk_handler(&self, mut client: UnixStream) {
         let _: LoggedResult<()> = try {
             let code = ZygiskRequest {
                 repr: client.read_decodable()?,
@@ -228,7 +228,7 @@ impl MagiskD {
                     .join_path("zygisk");
                 // Create the unloaded marker file
                 if let Ok(dir) = Directory::open(&path) {
-                    dir.open_as_file_at(cstr!("unloaded"), O_CREAT | O_RDONLY, 0o644)
+                    dir.open_as_file_at(cstr!("unloaded"), OFlag::O_CREAT | OFlag::O_RDONLY, 0o644)
                         .log()
                         .ok();
                 }
@@ -244,7 +244,7 @@ impl MagiskD {
         let dir = cstr::buf::default()
             .join_path(MODULEROOT)
             .join_path(&module.name);
-        let fd = dir.open(O_RDONLY | O_CLOEXEC)?;
+        let fd = dir.open(OFlag::O_RDONLY | OFlag::O_CLOEXEC)?;
         client.send_fds(&[fd.as_raw_fd()])?;
         Ok(())
     }
@@ -254,13 +254,5 @@ impl MagiskD {
 impl MagiskD {
     pub fn zygisk_enabled(&self) -> bool {
         self.zygisk_enabled.load(Ordering::Acquire)
-    }
-
-    pub fn zygisk_reset(&self, restore: bool) {
-        self.zygisk.lock().unwrap().reset(restore);
-    }
-
-    pub fn restore_zygisk_prop(&self) {
-        self.zygisk.lock().unwrap().restore_prop();
     }
 }

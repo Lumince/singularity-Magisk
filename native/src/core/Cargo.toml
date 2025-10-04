@@ -8,8 +8,12 @@ crate-type = ["staticlib"]
 path = "lib.rs"
 
 [features]
-default = ["check-signature"]
+default = ["check-signature", "check-client", "su-check-db"]
+
+# Disable these features for easier debugging during development
 check-signature = []
+check-client = []
+su-check-db = []
 
 [build-dependencies]
 cxx-gen = { workspace = true }
@@ -26,3 +30,5 @@ bytemuck = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 bit-set = { workspace = true }
 argh = { workspace = true }
+nix = { workspace = true, features = ["fs", "mount", "poll", "signal", "term", "user", "zerocopy"] }
+bitflags = { workspace = true }

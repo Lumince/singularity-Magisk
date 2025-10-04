@@ -9,9 +9,8 @@ use base::{LoggedResult, ResultExt, Utf8CStr};
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 use std::ffi::c_void;
-use std::fs::File;
 use std::io::{BufReader, BufWriter};
-use std::os::fd::{FromRawFd, OwnedFd, RawFd};
+use std::os::unix::net::UnixStream;
 use std::pin::Pin;
 use std::ptr;
 use std::ptr::NonNull;
@@ -302,8 +301,7 @@ impl MagiskD {
             .sql_result()
     }
 
-    fn db_exec_for_client(&self, fd: OwnedFd) -> LoggedResult<()> {
-        let mut file = File::from(fd);
+    pub fn db_exec_for_cli(&self, mut file: UnixStream) -> LoggedResult<()> {
         let mut reader = BufReader::new(&mut file);
         let sql: String = reader.read_decodable()?;
         let mut writer = BufWriter::new(&mut file);
@@ -327,12 +325,6 @@ impl MagiskD {
 impl MagiskD {
     pub fn set_db_setting_for_cxx(&self, key: DbEntryKey, value: i32) -> bool {
         self.set_db_setting(key, value).log().is_ok()
-    }
-
-    pub fn db_exec_for_cxx(&self, client_fd: RawFd) {
-        // Take ownership
-        let fd = unsafe { OwnedFd::from_raw_fd(client_fd) };
-        self.db_exec_for_client(fd).ok();
     }
 }
 
