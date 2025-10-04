@@ -90,13 +90,6 @@ object SuCallbackHandler {
     }
 
     private fun notify(context: Context, granted: Boolean, appName: String) {
-        if (Config.suNotification == Config.Value.NOTIFICATION_TOAST) {
-            val resId = if (granted)
-                R.string.su_allow_toast
-            else
-                R.string.su_deny_toast
-
-            context.toast(context.getString(resId, appName), Toast.LENGTH_SHORT)
-        }
+        // removed toast notifications due to log spam - veygax
     }
 }
