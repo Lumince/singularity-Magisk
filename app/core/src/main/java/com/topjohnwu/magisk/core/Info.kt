@@ -49,7 +49,10 @@ object Info {
         private set
     var isVendorBoot = false
         private set
-    @JvmField val isZygiskEnabled = System.getenv("ZYGISK_ENABLED") == "1"
+    // Primary: set when this process is Zygisk-injected (normal boot-patched path).
+    // Fallback in init(): Quest / live Magisk often runs Zygisk in zygote without injecting
+    // the manager (parasitic shell, post-boot setup, no zygote recycle).
+    @JvmField var isZygiskEnabled = System.getenv("ZYGISK_ENABLED") == "1"
     @JvmStatic val isFDE get() = crypto == "block"
     @JvmStatic var ramdisk = false
         private set
@@ -92,6 +95,9 @@ object Info {
                 runCatching { fastCmd("magisk -V").toInt() }.getOrDefault(-1)
             )
             Config.denyList = fastCmdResult(shell, "magisk --denylist status")
+            if (!isZygiskEnabled) {
+                isZygiskEnabled = detectRuntimeZygisk(shell)
+            }
         }
 
         val map = mutableMapOf<String, String>()
@@ -121,5 +127,23 @@ object Info {
         Config.recovery = getBool("RECOVERYMODE")
         Config.keepVerity = getBool("KEEPVERITY")
         Config.keepEnc = getBool("KEEPFORCEENCRYPT")
+    }
+
+    private fun detectRuntimeZygisk(shell: Shell): Boolean {
+        if (!fastCmdResult(shell,
+                "magisk --sqlite \"SELECT value FROM settings WHERE key='zygisk' LIMIT 1\" | grep -q 'value=1'"
+            )) return false
+
+        val bridge = getProperty("ro.dalvik.vm.native.bridge", "")
+        if (!bridge.startsWith("libzygisk.so")) return false
+
+        return fastCmdResult(shell, """
+            for z in zygote64 zygote; do
+              pid=$(pidof ${'$'}z 2>/dev/null) || continue
+              [ -n "${'$'}pid" ] || continue
+              grep -q libzygisk.so /proc/${'$'}pid/maps 2>/dev/null && exit 0
+            done
+            exit 1
+        """.trimIndent())
     }
 }
