@@ -151,9 +151,6 @@ class HomeViewModel(
         if (magiskState == State.INVALID || checkedEnv) return
         val cmd = "env_check ${Info.env.versionString} ${Info.env.versionCode}"
         val code = Shell.cmd(cmd).await().code
-        if (code != 0) {
-            EnvFixDialog(this, code).show()
-        }
         checkedEnv = true
     }
 
