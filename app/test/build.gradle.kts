@@ -3,10 +3,10 @@ plugins {
 }
 
 android {
-    namespace = "com.veygax.eventhorizon.magisk.test"
+    namespace = "com.singularity.magisk.test"
 
     defaultConfig {
-        applicationId = "com.veygax.eventhorizon.magisk.test"
+        applicationId = "com.singularity.magisk.test"
         versionCode = 1
         versionName = "1.0"
         proguardFile("proguard-rules.pro")

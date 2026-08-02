@@ -1,6 +1,6 @@
 #pragma once
 
-#define JAVA_PACKAGE_NAME "com.veygax.eventhorizon.magisk"
+#define JAVA_PACKAGE_NAME "com.singularity.magisk"
 #define SECURE_DIR      "/data/adb"
 #define MODULEROOT      SECURE_DIR "/modules"
 #define DATABIN         SECURE_DIR "/magisk"

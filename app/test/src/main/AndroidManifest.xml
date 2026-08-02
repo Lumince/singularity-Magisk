@@ -13,11 +13,11 @@
     </application>
 
     <instrumentation
-        android:name="com.topjohnwu.magisk.test.AppTestRunner"
+        android:name="com.singularity.magisk.test.AppTestRunner"
         android:targetPackage="com.veygax.eventhorizon.magisk" />
 
     <instrumentation
-        android:name="com.topjohnwu.magisk.test.TestRunner"
+        android:name="com.singularity.magisk.test.TestRunner"
         android:targetPackage="com.veygax.eventhorizon.magisk.test" />
 
 </manifest>
