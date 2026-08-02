@@ -10,15 +10,15 @@ lsparanoid {
 }
 
 android {
-    namespace = "com.veygax.eventhorizon.magisk"
+    namespace = "com.singularity.magisk"
 
     val canary = !Config.version.contains(".")
-    val base = "https://github.com/veygax/eventhorizon-Magisk/releases/download/"
+    val base = "https://github.com/Lumince/singularity-Magisk/releases/download/"
     val url = base + "v${Config.version}/Magisk-v${Config.version}.apk"
     val canaryUrl = base + "canary-${Config.versionCode}/"
 
     defaultConfig {
-        applicationId = "com.veygax.eventhorizon.magisk"
+        applicationId = "com.singularity.magisk"
         versionCode = 1
         versionName = "1.0"
         buildConfigField("String", "APK_URL", "\"$url\"")

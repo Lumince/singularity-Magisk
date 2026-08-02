@@ -90,6 +90,6 @@ object SuCallbackHandler {
     }
 
     private fun notify(context: Context, granted: Boolean, appName: String) {
-        // removed toast notifications due to log spam - veygax
+        // removed toast notifications due to log spam
     }
 }

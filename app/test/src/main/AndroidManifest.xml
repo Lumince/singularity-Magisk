@@ -14,10 +14,10 @@
 
     <instrumentation
         android:name="com.topjohnwu.magisk.test.AppTestRunner"
-        android:targetPackage="com.veygax.eventhorizon.magisk" />
+        android:targetPackage="com.singularity.magisk" />
 
     <instrumentation
         android:name="com.topjohnwu.magisk.test.TestRunner"
-        android:targetPackage="com.veygax.eventhorizon.magisk.test" />
+        android:targetPackage="com.singularity.magisk.test" />
 
 </manifest>
