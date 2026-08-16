@@ -42,6 +42,16 @@ impl SqlTable for UidList {
 }
 
 impl MagiskD {
+    /// Seed a permanent Allow policy for the given uid if one doesn't exist yet.
+    /// Sets logging=1 so the grant appears in the Superuser tab, notify=0, until=0 (never expires).
+    pub fn ensure_app_allowed(&self, uid: i32) {
+        self.db_exec(
+            "INSERT OR IGNORE INTO policies (uid, policy, logging, notification, until) \
+             VALUES (?, ?, 1, 0, 0)",
+            &[Integer(uid as i64), Integer(SuPolicy::Allow.repr as i64)],
+        );
+    }
+
     pub fn get_root_settings(&self, uid: i32, settings: &mut RootSettings) -> SqliteResult<()> {
         self.db_exec_with_rows(
             "SELECT policy, logging, notification FROM policies \

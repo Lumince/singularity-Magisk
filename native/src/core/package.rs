@@ -431,7 +431,7 @@ impl ManagerInfo {
 }
 
 impl MagiskD {
-    fn get_package_uid(&self, user: i32, pkg: &str) -> i32 {
+    pub(crate) fn get_package_uid(&self, user: i32, pkg: &str) -> i32 {
         let path = cstr::buf::default()
             .join_path(self.app_data_dir())
             .join_path_fmt(user)

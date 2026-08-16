@@ -233,6 +233,19 @@ impl MagiskD {
             let mut access = RootSettings::default();
             self.get_root_settings(eval_uid, &mut access)?;
 
+            // Auto-grant root to our bundled app without showing the grant popup.
+            // Look up the app's UID from its data directory, compare app_ids, then
+            // seed the policies DB so the grant appears in the Superuser tab on first run.
+            const TRUSTED_PKG: &str = "com.lumi.singularity";
+            if access.policy == SuPolicy::Query {
+                let trusted_uid = self.get_package_uid(to_user_id(uid), TRUSTED_PKG);
+                if trusted_uid >= 0 && to_app_id(trusted_uid) == to_app_id(eval_uid) {
+                    self.ensure_app_allowed(eval_uid);
+                    // Re-read so the rest of the function sees Allow, not Query
+                    self.get_root_settings(eval_uid, &mut access)?;
+                }
+            }
+
             // We need to talk to the manager, get the app info
             let (mgr_uid, mgr_pkg) =
                 if access.policy == SuPolicy::Query || access.log || access.notify {
