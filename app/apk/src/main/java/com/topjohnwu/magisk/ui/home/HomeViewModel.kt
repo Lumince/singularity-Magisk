@@ -148,9 +148,12 @@ class HomeViewModel(
     }
 
     private suspend fun ensureEnv() {
-        if (magiskState == State.INVALID || checkedEnv) return
+        if (magiskState == State.INVALID || checkedEnv || !Info.isUnlockedBootloader) return
         val cmd = "env_check ${Info.env.versionString} ${Info.env.versionCode}"
         val code = Shell.cmd(cmd).await().code
+        if (code != 0) {
+            EnvFixDialog(this, code).show()
+        }
         checkedEnv = true
     }
 

@@ -63,6 +63,9 @@ object Info {
             || getProperty("ro.kernel.qemu", "0") == "1"
             || getProperty("ro.boot.qemu", "0") == "1"
 
+    @JvmStatic val isUnlockedBootloader =
+        getProperty("ro.boot.verifiedbootstate", "") == "orange"
+
     val isConnected = MutableLiveData(false)
 
     val showSuperUser: Boolean get() {

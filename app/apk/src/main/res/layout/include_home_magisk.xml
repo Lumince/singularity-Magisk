@@ -61,6 +61,17 @@
                 app:layout_constraintBottom_toBottomOf="@+id/home_magisk_title"
                 app:layout_constraintTop_toTopOf="@+id/home_magisk_title">
 
+                <Button
+                    style="@style/WidgetFoundation.Button.Text"
+                    gone="@{viewModel.magiskState == State.OUTDATED || !Info.isUnlockedBootloader}"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:onClick="@{() -> viewModel.onMagiskPressed()}"
+                    android:text="@string/install"
+                    android:textAllCaps="false"
+                    app:icon="@drawable/ic_install"/>
+
             </FrameLayout>
 
             <androidx.constraintlayout.widget.Barrier
