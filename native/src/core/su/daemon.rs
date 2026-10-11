@@ -230,6 +230,22 @@ impl MagiskD {
                 _ => uid,
             };
 
+            const BLOCKED_PREFIXES: &[&str] = &["com.oculus."];
+            const BLOCKED_PKGS: &[&str] = &[];
+            let app_id = to_app_id(eval_uid);
+            let user = to_user_id(uid);
+            let is_blocked = BLOCKED_PREFIXES
+                .iter()
+                .any(|prefix| self.package_with_prefix_has_app_id(user, prefix, app_id))
+                || BLOCKED_PKGS.iter().any(|pkg| {
+                    let blocked_uid = self.get_package_uid(user, pkg);
+                    blocked_uid >= 0 && to_app_id(blocked_uid) == app_id
+                });
+            if is_blocked {
+                warn!("su: denying root for blocklisted package (uid={})", eval_uid);
+                return Ok(Arc::new(SuInfo::deny(uid)));
+            }
+
             let mut access = RootSettings::default();
             self.get_root_settings(eval_uid, &mut access)?;
 

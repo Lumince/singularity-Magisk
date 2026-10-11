@@ -431,6 +431,35 @@ impl ManagerInfo {
 }
 
 impl MagiskD {
+    pub(crate) fn package_with_prefix_has_app_id(&self, user: i32, prefix: &str, app_id: i32) -> bool {
+        let path = cstr::buf::default()
+            .join_path(self.app_data_dir())
+            .join_path_fmt(user);
+        let mut dir = match Directory::open(&path) {
+            Ok(d) => d,
+            Err(_) => return false,
+        };
+        loop {
+            let entry = match dir.read() {
+                Ok(Some(e)) => e,
+                _ => break,
+            };
+            if !entry.name().as_str().starts_with(prefix) {
+                continue;
+            }
+            let mut entry_path = cstr::buf::default();
+            if entry.resolve_path(&mut entry_path).is_err() {
+                continue;
+            }
+            if let Ok(attr) = entry_path.get_attr()
+                && to_app_id(attr.st.st_uid as i32) == app_id
+            {
+                return true;
+            }
+        }
+        false
+    }
+
     pub(crate) fn get_package_uid(&self, user: i32, pkg: &str) -> i32 {
         let path = cstr::buf::default()
             .join_path(self.app_data_dir())
