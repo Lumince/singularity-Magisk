@@ -90,13 +90,18 @@ object Info {
         val isActive = versionCode > 0
     }
 
+    fun refreshEnv(shell: Shell) {
+        if (!shell.isRoot) return
+        val v = fastCmd(shell, "magisk -v").split(":")
+        env = Env(
+            v[0], v.size >= 3 && v[2] == "D",
+            runCatching { fastCmd("magisk -V").toInt() }.getOrDefault(-1)
+        )
+    }
+
     fun init(shell: Shell) {
         if (shell.isRoot) {
-            val v = fastCmd(shell, "magisk -v").split(":")
-            env = Env(
-                v[0], v.size >= 3 && v[2] == "D",
-                runCatching { fastCmd("magisk -V").toInt() }.getOrDefault(-1)
-            )
+            refreshEnv(shell)
             Config.denyList = fastCmdResult(shell, "magisk --denylist status")
             if (!isZygiskEnabled) {
                 isZygiskEnabled = detectRuntimeZygisk(shell)

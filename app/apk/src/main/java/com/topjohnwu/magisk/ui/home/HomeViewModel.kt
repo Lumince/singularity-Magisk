@@ -29,6 +29,8 @@ import com.topjohnwu.magisk.dialog.UninstallDialog
 import com.topjohnwu.magisk.events.SnackbarEvent
 import com.topjohnwu.magisk.utils.asText
 import com.topjohnwu.superuser.Shell
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 import com.topjohnwu.magisk.core.R as CoreR
 
@@ -90,6 +92,13 @@ class HomeViewModel(
     }
 
     override suspend fun doLoadWork() {
+        withContext(Dispatchers.IO) {
+            Shell.getCachedShell()?.let { shell ->
+                runCatching { Info.refreshEnv(shell) }
+            }
+        }
+        notifyChange()
+
         appState = State.LOADING
         Info.fetchUpdate(svc)?.apply {
             appState = when {

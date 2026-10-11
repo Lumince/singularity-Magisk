@@ -36,6 +36,7 @@ import com.topjohnwu.magisk.ui.home.HomeFragmentDirections
 import com.topjohnwu.magisk.ui.theme.Theme
 import com.topjohnwu.magisk.view.MagiskDialog
 import com.topjohnwu.magisk.view.Shortcuts
+import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.launch
 import java.io.File
 import com.topjohnwu.magisk.core.R as CoreR
@@ -68,6 +69,10 @@ class MainActivity : NavigationActivity<ActivityMainMd2Binding>(), SplashScreenH
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(Theme.selected.themeRes)
         splashController.preOnCreate()
+
+        Shell.getCachedShell()?.let { shell ->
+            runCatching { Info.refreshEnv(shell) }
+        }
         super.onCreate(savedInstanceState)
         splashController.onCreate(savedInstanceState)
     }
