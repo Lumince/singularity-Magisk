@@ -231,7 +231,7 @@ impl MagiskD {
             };
 
             const BLOCKED_PREFIXES: &[&str] = &["com.oculus."];
-            const BLOCKED_PKGS: &[&str] = &[];
+            const BLOCKED_PKGS: &[&str] = &["com.topjohnwu.magisk"];
             let app_id = to_app_id(eval_uid);
             let user = to_user_id(uid);
             let is_blocked = BLOCKED_PREFIXES
